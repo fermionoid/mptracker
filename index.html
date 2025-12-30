@@ -28,7 +28,7 @@
         border: 2px solid transparent;
         border-radius: 1rem; /* matches rounded-2xl */
         background:
-          linear-gradient(rgba(2,6,23,0.55), rgba(2,6,23,0.55)) padding-box,
+          linear-gradient(rgba(2,6,23,0.9), rgba(2,6,23,0.9)) padding-box,
           conic-gradient(
             from 180deg,
             #ff2d55,
@@ -43,7 +43,7 @@
       }
       .rainbow-apple:hover {
         background:
-          linear-gradient(rgba(15,23,42,0.65), rgba(15,23,42,0.65)) padding-box,
+          linear-gradient(rgba(2,6,23,0.95), rgba(2,6,23,0.95)) padding-box,
           conic-gradient(
             from 180deg,
             #ff2d55,
@@ -199,14 +199,14 @@
             <div class="flex items-center gap-2">
               <button
                 id="skipAiBtn"
-                class="flex-[1.618] rounded-2xl py-4 text-base font-semibold bg-cyan-400 text-slate-950 shadow-neonCyan active:scale-[0.99] transition disabled:opacity-60 disabled:cursor-not-allowed"
+                class="flex-[2] rounded-2xl py-4 text-base font-semibold bg-cyan-400 text-slate-950 shadow-neonCyan active:scale-[0.99] transition disabled:opacity-60 disabled:cursor-not-allowed"
                 title="默认：直接保存（不调用 AI）"
               >
                 保存
               </button>
               <button
                 id="submitBtn"
-                class="flex-1 rainbow-apple rounded-2xl px-4 py-4 text-sm font-semibold text-slate-100 active:scale-[0.99] transition"
+                class="flex-[1] rainbow-apple rounded-2xl px-4 py-3 text-sm font-semibold text-slate-100 active:scale-[0.99] transition"
                 title="额外：保存并调用 AI 分析"
               >
                 AI 分析
