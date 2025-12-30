@@ -310,23 +310,27 @@
     cleanupInlineEditor();
     hideRatingPopover();
 
+    const isMastery = field === "mastery";
     const pop = document.createElement("div");
     pop.className =
-      "fixed z-[60] rounded-2xl border border-slate-800 bg-slate-950/95 backdrop-blur p-2 shadow-[0_20px_80px_rgba(0,0,0,0.55)]";
+      "fixed z-[60] rounded-full border border-slate-800 bg-slate-950/95 backdrop-blur p-2 shadow-[0_20px_80px_rgba(0,0,0,0.55)]";
     pop.style.left = `${Math.max(8, Math.min(window.innerWidth - 220, x - 90))}px`;
     pop.style.top = `${Math.max(8, Math.min(window.innerHeight - 80, y + 10))}px`;
 
     const row = document.createElement("div");
-    row.className = "grid grid-cols-5 gap-2";
+    row.className = "flex items-center gap-2";
 
     for (let i = 1; i <= 5; i++) {
       const b = document.createElement("button");
       b.type = "button";
       b.textContent = String(i);
       const selected = Number(current) === i;
+      const selectedClass = isMastery
+        ? "border-emerald-400/60 bg-emerald-400/20 text-emerald-200 shadow-neon"
+        : "border-cyan-400/60 bg-cyan-400/20 text-cyan-200 shadow-neonCyan";
       b.className = selected
-        ? "rounded-xl border border-cyan-400/50 bg-cyan-400/15 px-0 py-2 text-sm font-semibold text-cyan-200 shadow-neonCyan active:scale-[0.99] transition"
-        : "rounded-xl border border-slate-800 bg-slate-900/40 px-0 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-900/70 active:scale-[0.99] transition";
+        ? `w-11 h-11 rounded-full border ${selectedClass} text-base font-semibold active:scale-[0.99] transition`
+        : "w-11 h-11 rounded-full border border-slate-800 bg-slate-900/40 text-base font-semibold text-slate-200 hover:bg-slate-900/70 active:scale-[0.99] transition";
       b.addEventListener("click", async () => {
         try {
           await updateLogById(id, { [field]: i });
