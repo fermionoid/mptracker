@@ -422,7 +422,7 @@ Return JSON only in the format: { "category": "String", "insight": "String" }.`;
     return { category, insight };
   }
 
-  function makeOptimisticRecord({ task, mastery, pleasure, durationSeconds }) {
+  function makeOptimisticRecord({ task, mastery, pleasure, durationSeconds, useAI }) {
     return {
       id: `temp_${Date.now()}_${Math.random().toString(16).slice(2)}`,
       created_at: new Date().toISOString(),
@@ -430,8 +430,9 @@ Return JSON only in the format: { "category": "String", "insight": "String" }.`;
       mastery,
       pleasure,
       duration: formatMMSS(durationSeconds),
-      category: "…",
-      insight: "Analyzing…",
+      category: useAI ? "…" : "Uncategorized",
+      // 仅在 AI 分析时显示占位，纯保存不显示“Analyzing…”
+      insight: useAI ? "Analyzing…" : "",
       _optimistic: true,
     };
   }
@@ -444,7 +445,7 @@ Return JSON only in the format: { "category": "String", "insight": "String" }.`;
     const pleasure = modalPleasure;
     const durationSeconds = pendingDurationSeconds;
 
-    const temp = makeOptimisticRecord({ task, mastery, pleasure, durationSeconds });
+    const temp = makeOptimisticRecord({ task, mastery, pleasure, durationSeconds, useAI });
     optimistic.unshift(temp);
     renderHistory();
 
