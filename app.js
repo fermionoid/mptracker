@@ -101,9 +101,9 @@
   const elSkipAiBtn = document.getElementById("skipAiBtn");
   const elModalStatus = document.getElementById("modalStatus");
 
-  // Visual proof JS is running + show current USER_ID (for sync / privacy testing)
-  if (elBuildBadge) elBuildBadge.textContent = `Build: ${BUILD_ID} · ID:${String(USER_ID).slice(0, 8)}`;
-  if (elStatusText) elStatusText.textContent = `JS 已加载（ID:${String(USER_ID).slice(0, 8)}）`;
+  // Visual proof JS is running (hide internal id from UI)
+  if (elBuildBadge) elBuildBadge.textContent = `Build: ${BUILD_ID}`;
+  if (elStatusText) elStatusText.textContent = `JS 已加载`;
 
   window.addEventListener("error", (e) => {
     try {
@@ -151,13 +151,16 @@
       if (elLogoutBtn) elLogoutBtn.classList.remove("hidden");
     } else {
       ACTIVE_USER_ID = USER_ID;
-      if (elUserLabel) elUserLabel.classList.add("hidden");
+      if (elUserLabel) {
+        elUserLabel.textContent = "游客（登录可跨设备同步）";
+        elUserLabel.classList.remove("hidden");
+      }
       if (elLoginBtn) elLoginBtn.classList.remove("hidden");
       if (elLogoutBtn) elLogoutBtn.classList.add("hidden");
     }
-    // refresh badge/status with the actual active id
-    if (elBuildBadge) elBuildBadge.textContent = `Build: ${BUILD_ID} · ID:${shortId(ACTIVE_USER_ID)}`;
-    if (elStatusText) elStatusText.textContent = `JS 已加载（ID:${shortId(ACTIVE_USER_ID)}）`;
+    // refresh badge/status (no id shown)
+    if (elBuildBadge) elBuildBadge.textContent = `Build: ${BUILD_ID}`;
+    if (elStatusText) elStatusText.textContent = session?.user ? "已登录" : "游客模式";
   }
 
   async function fetchLogs() {
