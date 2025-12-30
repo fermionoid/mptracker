@@ -23,6 +23,38 @@
       .shadow-neon { box-shadow: 0 0 0 1px rgba(16,185,129,0.25), 0 0 25px rgba(16,185,129,0.15); }
       .shadow-neonRed { box-shadow: 0 0 0 1px rgba(244,63,94,0.25), 0 0 25px rgba(244,63,94,0.15); }
       .shadow-neonCyan { box-shadow: 0 0 0 1px rgba(34,211,238,0.25), 0 0 25px rgba(34,211,238,0.12); }
+      /* Apple-ish rainbow outline */
+      .rainbow-apple {
+        border: 2px solid transparent;
+        border-radius: 1rem; /* matches rounded-2xl */
+        background:
+          linear-gradient(rgba(2,6,23,0.55), rgba(2,6,23,0.55)) padding-box,
+          conic-gradient(
+            from 180deg,
+            #ff2d55,
+            #ff9500,
+            #ffcc00,
+            #34c759,
+            #0a84ff,
+            #bf5af2,
+            #ff2d55
+          ) border-box;
+        box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 8px 30px rgba(0,0,0,0.35);
+      }
+      .rainbow-apple:hover {
+        background:
+          linear-gradient(rgba(15,23,42,0.65), rgba(15,23,42,0.65)) padding-box,
+          conic-gradient(
+            from 180deg,
+            #ff2d55,
+            #ff9500,
+            #ffcc00,
+            #34c759,
+            #0a84ff,
+            #bf5af2,
+            #ff2d55
+          ) border-box;
+      }
     </style>
   </head>
 
@@ -167,14 +199,14 @@
             <div class="flex items-center gap-2">
               <button
                 id="skipAiBtn"
-                class="flex-1 rounded-2xl py-4 text-base font-semibold bg-cyan-400 text-slate-950 shadow-neonCyan active:scale-[0.99] transition disabled:opacity-60 disabled:cursor-not-allowed"
+                class="flex-[1.618] rounded-2xl py-4 text-base font-semibold bg-cyan-400 text-slate-950 shadow-neonCyan active:scale-[0.99] transition disabled:opacity-60 disabled:cursor-not-allowed"
                 title="默认：直接保存（不调用 AI）"
               >
                 保存
               </button>
               <button
                 id="submitBtn"
-                class="rounded-2xl px-4 py-4 text-sm font-semibold border border-slate-800 bg-slate-900/40 text-slate-200 hover:bg-slate-900/70"
+                class="flex-1 rainbow-apple rounded-2xl px-4 py-4 text-sm font-semibold text-slate-100 active:scale-[0.99] transition"
                 title="额外：保存并调用 AI 分析"
               >
                 AI 分析
