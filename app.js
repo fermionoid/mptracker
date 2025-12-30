@@ -9,7 +9,7 @@
   const SUPABASE_URL = "https://ipyqmwwcaqywdntoxgue.supabase.co";
   const SUPABASE_KEY = "sb_publishable_HsfJ4VLrw-tSlEr86p2tmQ_BOW9B-j1";
   // 多设备同步：默认每台设备一个随机 ID（方便你发给别人用，不会写进同一份数据里）
-  // 想让“手机+电脑”共享同一份数据：用同一个 user（例如访问：?user=ruijia_main）
+  // 想让“手机+电脑”共享同一份数据：用同一个 user（例如：?user=ruijia_main）
   const USER_ID_STORAGE_KEY = "mp_tracker_device_id";
   const urlUser = new URLSearchParams(location.search).get("user");
   let USER_ID = urlUser || localStorage.getItem(USER_ID_STORAGE_KEY);
