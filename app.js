@@ -1,7 +1,7 @@
 // MP Tracker app logic (external file to avoid CSP blocking inline scripts)
 (() => {
-  // Fallback only (real "build" is derived from Last-Modified of app.js when possible)
-  const BUILD_ID = "local";
+  // Version string: prefer app.js cache-bust param (?v=...), fallback to "local"
+  const APP_VERSION = new URLSearchParams(location.search).get("v") || "local";
 
   // ======================
   // 配置（你在这里填写）
@@ -104,23 +104,48 @@
 
   async function refreshBuildBadge() {
     if (!elBuildBadge) return;
-    elBuildBadge.textContent = "Build: …";
+    elBuildBadge.textContent = `Ver: ${APP_VERSION} · …`;
     try {
       const res = await fetch("./app.js", { method: "HEAD", cache: "no-store" });
       const lm = res.headers.get("last-modified");
       if (lm) {
         const d = new Date(lm);
         const text = isNaN(d.getTime()) ? lm : d.toISOString().replace("T", " ").slice(0, 19);
-        elBuildBadge.textContent = `Build: ${text}`;
+        elBuildBadge.textContent = `Ver: ${APP_VERSION} · ${text}`;
         return;
       }
     } catch {}
-    elBuildBadge.textContent = `Build: ${BUILD_ID}`;
+    elBuildBadge.textContent = `Ver: ${APP_VERSION}`;
   }
 
   // Visual proof JS is running
   if (elStatusText) elStatusText.textContent = `JS 已加载`;
   refreshBuildBadge();
+
+  // Info modal
+  const elInfoBtn = document.getElementById("infoBtn");
+  const elInfoOverlay = document.getElementById("infoOverlay");
+  const elCloseInfoBtn = document.getElementById("closeInfoBtn");
+  function openInfo() {
+    if (!elInfoOverlay) return;
+    elInfoOverlay.classList.remove("hidden");
+    document.body.classList.add("no-scroll");
+  }
+  function closeInfo() {
+    if (!elInfoOverlay) return;
+    elInfoOverlay.classList.add("hidden");
+    document.body.classList.remove("no-scroll");
+  }
+  if (elInfoBtn) elInfoBtn.addEventListener("click", openInfo);
+  if (elCloseInfoBtn) elCloseInfoBtn.addEventListener("click", closeInfo);
+  if (elInfoOverlay) {
+    elInfoOverlay.addEventListener("click", (e) => {
+      if (e.target === elInfoOverlay) closeInfo();
+    });
+  }
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && elInfoOverlay && !elInfoOverlay.classList.contains("hidden")) closeInfo();
+  });
 
   window.addEventListener("error", (e) => {
     try {

@@ -62,8 +62,16 @@
     <div class="mx-auto max-w-md px-4 pb-10 pt-6">
       <header class="mb-5">
         <div class="flex items-center justify-between">
-          <div>
+          <div class="flex items-center gap-2">
             <h1 class="text-xl font-semibold tracking-tight">MP Tracker</h1>
+            <button
+              id="infoBtn"
+              type="button"
+              class="rounded-full border border-slate-700 bg-slate-900/40 w-7 h-7 grid place-items-center text-[12px] font-semibold text-slate-200 hover:bg-slate-900/70"
+              title="关于 MP Tracker"
+            >
+              i
+            </button>
             <p class="text-sm text-slate-300">胜任感 × 愉悦感</p>
           </div>
           <div class="flex items-center gap-2">
@@ -148,6 +156,46 @@
       </main>
     </div>
 
+    <!-- Info Modal -->
+    <div id="infoOverlay" class="fixed inset-0 z-50 hidden">
+      <div class="absolute inset-0 bg-black/70"></div>
+      <div class="absolute inset-0 flex items-end sm:items-center justify-center p-4">
+        <div class="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-950/95 backdrop-blur p-4 shadow-[0_20px_80px_rgba(0,0,0,0.55)]">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <h3 class="text-base font-semibold">MP Tracker 是什么？</h3>
+              <p class="text-xs text-slate-400">胜任感（M）× 愉悦感（P）= 行为强化的两个关键维度</p>
+            </div>
+            <button id="closeInfoBtn" class="rounded-lg px-2 py-1 text-slate-300 hover:bg-slate-900/60">✕</button>
+          </div>
+
+          <div class="mt-4 space-y-4 text-sm text-slate-200 leading-relaxed">
+            <div class="rounded-xl border border-slate-800 bg-slate-900/30 p-3">
+              <div class="text-xs text-slate-400 mb-1">原理（简版）</div>
+              <div>
+                记录每次任务完成后的 <b>胜任感</b>（Mastery）与 <b>愉悦感</b>（Pleasure）。
+                长期来看，你会更清楚：哪些活动“做得来”、哪些活动“做着爽”，从而更容易形成稳定习惯。
+              </div>
+            </div>
+
+            <div class="rounded-xl border border-slate-800 bg-slate-900/30 p-3">
+              <div class="text-xs text-slate-400 mb-1">怎么用</div>
+              <ol class="list-decimal pl-5 space-y-1">
+                <li>点 <b>Start</b> 开始任务；结束后点 <b>Stop</b>。</li>
+                <li>复盘里给 M/P 打分（1-5）。越随手越好。</li>
+                <li>默认 <b>保存</b>；需要的话点 <b>AI 分析</b> 给一句洞察。</li>
+                <li>历史里可直接点任务名 / 分类 / M / P 进行就地编辑。</li>
+              </ol>
+            </div>
+
+            <div class="text-xs text-slate-400">
+              你可以随时把这段文案改成你自己的说明（这里是内置页面，方便快速迭代）。
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal -->
     <div id="modalOverlay" class="fixed inset-0 z-50 hidden">
       <div class="absolute inset-0 bg-black/70"></div>
@@ -221,7 +269,7 @@
 
     <!-- IMPORTANT: app logic is in external JS (to avoid CSP blocking inline scripts) -->
     <!-- cache-bust so drag-drop deploys don't get stuck on an old app.js -->
-    <script src="./app.js?v=0f42394" defer></script>
+    <script src="./app.js?v=3a9e808" defer></script>
   </body>
 </html>
 
