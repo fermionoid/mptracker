@@ -14,3 +14,19 @@
   to = "/.netlify/functions/chat-completions"
   status = 200
   force = true
+
+# Avoid "deployed but still old JS" due to aggressive CDN/browser caching.
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/app.js"
+  [headers.values]
+    Cache-Control = "no-cache"
