@@ -424,11 +424,7 @@ Return JSON only in the format: { "category": "String", "insight": "String" }.`;
       let insight = "已保存。";
 
       if (useAI) {
-        // 没填 key：也先保存（不做 AI 分析），避免误以为“存储坏了”
-        if (!API_KEY || API_KEY === "sk-..." || API_KEY === "...") {
-          category = "NoAI";
-          insight = "已保存（未填写 API_KEY，未分析）。";
-        } else {
+        // 走 Netlify Function 代理：密钥在服务器端（AI_BUILDERS_API_KEY），前端无需/不应持有 API_KEY
         try {
           const ai = await analyzeWithAI({ taskName: task || "（未命名任务）", mastery, pleasure });
           category = ai.category;
@@ -437,7 +433,6 @@ Return JSON only in the format: { "category": "String", "insight": "String" }.`;
           // AI 失败也继续保存（MVP：先跑通数据闭环）
           category = "AI_Error";
           insight = `AI失败：${e?.message || "未知错误"}`;
-        }
         }
       }
 
