@@ -1,7 +1,11 @@
 // MP Tracker app logic (external file to avoid CSP blocking inline scripts)
 (() => {
-  // Version string: prefer app.js cache-bust param (?v=...), fallback to "local"
-  const APP_VERSION = new URLSearchParams(location.search).get("v") || "local";
+  const formatYYMMDD = (d) => {
+    const yy = String(d.getFullYear()).slice(-2);
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yy}.${mm}.${dd}`;
+  };
 
   // ======================
   // 配置（你在这里填写）
@@ -104,18 +108,18 @@
 
   async function refreshBuildBadge() {
     if (!elBuildBadge) return;
-    elBuildBadge.textContent = `Ver: ${APP_VERSION} · …`;
+    elBuildBadge.textContent = `Ver: …`;
     try {
       const res = await fetch("./app.js", { method: "HEAD", cache: "no-store" });
       const lm = res.headers.get("last-modified");
       if (lm) {
         const d = new Date(lm);
-        const text = isNaN(d.getTime()) ? lm : d.toISOString().replace("T", " ").slice(0, 19);
-        elBuildBadge.textContent = `Ver: ${APP_VERSION} · ${text}`;
+        const text = isNaN(d.getTime()) ? lm : formatYYMMDD(d);
+        elBuildBadge.textContent = `Ver: ${text}`;
         return;
       }
     } catch {}
-    elBuildBadge.textContent = `Ver: ${APP_VERSION}`;
+    elBuildBadge.textContent = `Ver: ${formatYYMMDD(new Date())}`;
   }
 
   // Visual proof JS is running
