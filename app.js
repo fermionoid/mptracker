@@ -152,7 +152,7 @@
     } else {
       ACTIVE_USER_ID = USER_ID;
       if (elUserLabel) {
-        elUserLabel.textContent = "游客（登录可跨设备同步）";
+        elUserLabel.textContent = "游客";
         elUserLabel.classList.remove("hidden");
       }
       if (elLoginBtn) elLoginBtn.classList.remove("hidden");
@@ -351,9 +351,11 @@
           <span class="rounded-lg border border-emerald-400/25 bg-emerald-400/10 px-2 py-1 text-emerald-200">M ${escapeHtml(String(mastery))}/5</span>
           <span class="rounded-lg border border-cyan-400/25 bg-cyan-400/10 px-2 py-1 text-cyan-200">P ${escapeHtml(String(pleasure))}/5</span>
         </div>
-        <div class="mt-3 text-sm text-slate-200 leading-snug">
-          <span class="text-slate-400">洞察：</span>${escapeHtml(insight || "—")}
-        </div>
+        ${
+          insight
+            ? `<div class="mt-3 text-sm text-slate-200 leading-snug"><span class="text-slate-400">洞察：</span>${escapeHtml(insight)}</div>`
+            : ""
+        }
       `;
       elHistoryList.appendChild(card);
     }
@@ -453,7 +455,7 @@ Return JSON only in the format: { "category": "String", "insight": "String" }.`;
 
     try {
       let category = "Uncategorized";
-      let insight = "已保存。";
+      let insight = "";
 
       if (useAI) {
         // 走 Netlify Function 代理：密钥在服务器端（AI_BUILDERS_API_KEY），前端无需/不应持有 API_KEY
@@ -466,6 +468,10 @@ Return JSON only in the format: { "category": "String", "insight": "String" }.`;
           category = "AI_Error";
           insight = `AI失败：${e?.message || "未知错误"}`;
         }
+      } else {
+        // 仅保存：不展示“洞察”，避免干扰
+        category = "Uncategorized";
+        insight = "";
       }
 
       await insertLog({
