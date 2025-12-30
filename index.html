@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f172a" />
+    <title>MP Tracker</title>
+
+    <!-- Tailwind (no build step) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS Client (v2) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+      :root { color-scheme: dark; }
+      button, input { touch-action: manipulation; }
+      .bg-grid {
+        background-image: radial-gradient(circle at 1px 1px, rgba(148,163,184,0.12) 1px, rgba(0,0,0,0) 0);
+        background-size: 18px 18px;
+      }
+      .no-scroll { overflow: hidden; }
+      /* Custom shadows as plain CSS (works even if inline JS is blocked by CSP) */
+      .shadow-neon { box-shadow: 0 0 0 1px rgba(16,185,129,0.25), 0 0 25px rgba(16,185,129,0.15); }
+      .shadow-neonRed { box-shadow: 0 0 0 1px rgba(244,63,94,0.25), 0 0 25px rgba(244,63,94,0.15); }
+      .shadow-neonCyan { box-shadow: 0 0 0 1px rgba(34,211,238,0.25), 0 0 25px rgba(34,211,238,0.12); }
+    </style>
+  </head>
+
+  <body class="min-h-dvh bg-slate-900 text-slate-100 font-sans bg-grid">
+    <div class="mx-auto max-w-md px-4 pb-10 pt-6">
+      <header class="mb-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-xl font-semibold tracking-tight">MP Tracker</h1>
+            <p class="text-sm text-slate-300">胜任感 × 愉悦感 · 云端同步</p>
+          </div>
+          <span id="buildBadge" class="text-[11px] text-slate-400 rounded-full border border-slate-700 px-2 py-1">Build: -</span>
+        </div>
+      </header>
+
+      <main class="rounded-2xl border border-slate-800 bg-slate-950/40 backdrop-blur p-4 shadow-[0_10px_40px_rgba(0,0,0,0.35)]">
+        <label class="block mb-3">
+          <span class="text-xs text-slate-300">任务名称（可选）</span>
+          <input
+            id="taskNameInput"
+            type="text"
+            placeholder="例如：写周报 / 运动 / 学习…"
+            class="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-base outline-none focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20"
+          />
+        </label>
+
+        <div class="mt-2 flex flex-col items-center justify-center gap-3">
+          <div class="flex items-baseline gap-2">
+            <span class="text-xs uppercase tracking-widest text-slate-400">Timer</span>
+            <span id="timerText" class="text-5xl tabular-nums font-semibold text-slate-100 tracking-tight">00:00</span>
+          </div>
+
+          <button
+            id="startStopBtn"
+            class="relative z-10 w-full select-none rounded-2xl py-5 text-2xl font-semibold bg-emerald-500 text-emerald-950 shadow-neon active:scale-[0.99] transition"
+          >
+            Start
+          </button>
+
+          <div class="w-full flex items-center justify-between text-xs text-slate-400">
+            <span id="statusText">准备开始</span>
+            <button id="clearAllBtn" class="underline decoration-slate-600 hover:text-slate-200">
+              清空历史
+            </button>
+          </div>
+        </div>
+
+        <section class="mt-6">
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-sm font-semibold text-slate-200">History</h2>
+            <span id="historyCount" class="text-xs text-slate-400">0 条</span>
+          </div>
+          <div id="historyList" class="space-y-3"></div>
+          <div id="emptyState" class="mt-4 rounded-xl border border-slate-800 bg-slate-900/30 p-4 text-sm text-slate-300">
+            还没有记录。点击上方 <span class="text-emerald-300 font-semibold">Start</span> 开始一次任务。
+          </div>
+        </section>
+
+        <div class="mt-6 flex items-center justify-between gap-3">
+          <div class="text-xs text-slate-500">
+            数据保存在云端 <code class="text-slate-400">Supabase</code>（可跨设备同步）
+          </div>
+          <button
+            id="exportCsvBtn"
+            class="rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-xs font-semibold text-cyan-200 hover:bg-slate-900/70 shadow-neonCyan"
+          >
+            Export CSV
+          </button>
+        </div>
+      </main>
+    </div>
+
+    <!-- Modal -->
+    <div id="modalOverlay" class="fixed inset-0 z-50 hidden">
+      <div class="absolute inset-0 bg-black/70"></div>
+      <div class="absolute inset-0 flex items-end sm:items-center justify-center p-4">
+        <div class="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-950/95 backdrop-blur p-4 shadow-[0_20px_80px_rgba(0,0,0,0.55)]">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <h3 class="text-base font-semibold">任务结束 · 复盘一下</h3>
+              <p class="text-xs text-slate-400">提交后调用 AI，完成后写入 Supabase</p>
+            </div>
+            <button id="closeModalBtn" class="rounded-lg px-2 py-1 text-slate-300 hover:bg-slate-900/60">✕</button>
+          </div>
+
+          <div class="mt-4 space-y-4">
+            <label class="block">
+              <span class="text-xs text-slate-300">任务名称</span>
+              <input
+                id="modalTaskName"
+                type="text"
+                placeholder="给这次任务起个名字…"
+                class="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-base outline-none focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20"
+              />
+            </label>
+
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-slate-300 font-semibold">Mastery（胜任感）</span>
+                <span id="masteryHint" class="text-xs text-slate-500">未选择</span>
+              </div>
+              <div id="masteryRow" class="mt-2 grid grid-cols-5 gap-2"></div>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-slate-300 font-semibold">Pleasure（愉悦感）</span>
+                <span id="pleasureHint" class="text-xs text-slate-500">未选择</span>
+              </div>
+              <div id="pleasureRow" class="mt-2 grid grid-cols-5 gap-2"></div>
+            </div>
+
+            <div class="rounded-xl border border-slate-800 bg-slate-900/30 p-3">
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-400">时长</span>
+                <span id="durationText" class="tabular-nums text-slate-200 font-semibold">00:00</span>
+              </div>
+              <div class="mt-2 text-[11px] text-slate-500">提示：评分越随手越好，不用纠结。</div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button
+                id="submitBtn"
+                class="flex-1 rounded-2xl py-4 text-base font-semibold bg-cyan-400 text-slate-950 shadow-neonCyan active:scale-[0.99] transition disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                Save & Analyze
+              </button>
+              <button
+                id="skipAiBtn"
+                class="rounded-2xl px-4 py-4 text-sm font-semibold border border-slate-800 bg-slate-900/40 text-slate-200 hover:bg-slate-900/70"
+                title="不调用 AI，直接保存"
+              >
+                仅保存
+              </button>
+            </div>
+
+            <div id="modalStatus" class="text-xs text-slate-400 min-h-[1.25rem]"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- IMPORTANT: app logic is in external JS (to avoid CSP blocking inline scripts) -->
+    <script src="./app.js" defer></script>
+  </body>
+</html>
+
+

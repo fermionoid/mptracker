@@ -1,0 +1,9 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/chat/completions"
+  to = "/.netlify/functions/chat-completions"
+  status = 200
+  force = true
