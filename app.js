@@ -226,6 +226,24 @@
   // ======================
   let inlineEditor = null; // { inputEl, originalEl }
   let ratingPopover = null; // DOM element
+  let shownRlsHint = false;
+
+  function maybeShowRlsHint(err) {
+    if (shownRlsHint) return;
+    if (!HAS_SUPABASE || !IS_AUTHED) return;
+    const msg = String(err?.message || "");
+    // Common Supabase/PostgREST RLS permission errors
+    const looksLikeRls =
+      /permission denied|new row violates|violates row-level security|RLS|42501|PGRST|not allowed/i.test(msg);
+    if (!looksLikeRls && msg) return;
+    shownRlsHint = true;
+    alert(
+      "云端保存被拒绝：很可能是 Supabase `logs` 表开启了 RLS，但缺少 UPDATE policy。\n\n" +
+        "请在 Supabase 给 public.logs 添加 UPDATE policy（authenticated）：\n" +
+        "USING (user_id = auth.uid()::text)  WITH CHECK (user_id = auth.uid()::text)\n\n" +
+        "配置好后刷新页面再试。"
+    );
+  }
 
   function cleanupInlineEditor() {
     if (!inlineEditor) return;
@@ -295,6 +313,7 @@
         input.disabled = false;
         input.classList.add("border-rose-400/60");
         setTimeout(() => input.classList.remove("border-rose-400/60"), 1200);
+        maybeShowRlsHint(err);
         console.error(err);
       }
     };
@@ -338,6 +357,7 @@
           renderHistory();
         } catch (err) {
           console.error(err);
+          maybeShowRlsHint(err);
           hideRatingPopover();
         }
       });
