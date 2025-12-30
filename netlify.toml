@@ -2,6 +2,13 @@
   publish = "."
   functions = "netlify/functions"
 
+[build.environment]
+  # Fix: "Build image no longer supported"
+  # Use a supported Netlify build image (Ubuntu 22.04)
+  NETLIFY_BUILD_IMAGE = "jammy"
+  # Node is not strictly required for this static site, but setting a modern version avoids defaults.
+  NODE_VERSION = "18"
+
 [[redirects]]
   from = "/api/chat/completions"
   to = "/.netlify/functions/chat-completions"
