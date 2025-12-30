@@ -101,9 +101,16 @@
   const elSkipAiBtn = document.getElementById("skipAiBtn");
   const elModalStatus = document.getElementById("modalStatus");
 
-  // Visual proof JS is running
-  if (elBuildBadge) elBuildBadge.textContent = `Build: ${BUILD_ID}`;
-  if (elStatusText) elStatusText.textContent = "JS 已加载，准备开始";
+  // Visual proof JS is running + show current USER_ID (for sync / privacy testing)
+  const shortId = String(USER_ID).slice(0, 8);
+  if (elBuildBadge) elBuildBadge.textContent = `Build: ${BUILD_ID} · ID:${shortId}`;
+  if (elStatusText) elStatusText.textContent = `JS 已加载（ID:${shortId}）`;
+
+  // Helpful logs for debugging
+  try {
+    // eslint-disable-next-line no-console
+    console.log("[MP Tracker] USER_ID =", USER_ID, "urlUser =", urlUser || null);
+  } catch {}
 
   window.addEventListener("error", (e) => {
     try {
