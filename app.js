@@ -101,6 +101,18 @@
   const elSkipAiBtn = document.getElementById("skipAiBtn");
   const elModalStatus = document.getElementById("modalStatus");
 
+  // Edit modal
+  const elEditOverlay = document.getElementById("editOverlay");
+  const elCloseEditBtn = document.getElementById("closeEditBtn");
+  const elEditTaskName = document.getElementById("editTaskName");
+  const elEditCategory = document.getElementById("editCategory");
+  const elEditMasteryRow = document.getElementById("editMasteryRow");
+  const elEditPleasureRow = document.getElementById("editPleasureRow");
+  const elEditMasteryHint = document.getElementById("editMasteryHint");
+  const elEditPleasureHint = document.getElementById("editPleasureHint");
+  const elEditSaveBtn = document.getElementById("editSaveBtn");
+  const elEditStatus = document.getElementById("editStatus");
+
   // Visual proof JS is running (hide internal id from UI)
   if (elBuildBadge) elBuildBadge.textContent = `Build: ${BUILD_ID}`;
   if (elStatusText) elStatusText.textContent = `JS 已加载`;
@@ -177,7 +189,9 @@
   async function insertLog(row) {
     if (!HAS_SUPABASE) {
       const rows = loadLocalLogs();
-      rows.unshift({ ...row, created_at: row.created_at || new Date().toISOString() });
+      // ensure stable id for local editing
+      const localId = row.id || `local_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+      rows.unshift({ ...row, id: localId, created_at: row.created_at || new Date().toISOString() });
       saveLocalLogs(rows);
       return;
     }
@@ -196,6 +210,100 @@
   let modalMastery = null;
   let modalPleasure = null;
   const optimistic = [];
+  // cache last rendered records by id for editing
+  const recordById = new Map();
+
+  let editId = null;
+  let editMastery = null;
+  let editPleasure = null;
+
+  function setEditStatus(text, kind = "info") {
+    if (!elEditStatus) return;
+    if (!text) {
+      elEditStatus.textContent = "";
+      elEditStatus.className = "text-xs text-slate-400 min-h-[1.25rem]";
+      return;
+    }
+    const color = kind === "error" ? "text-rose-300" : kind === "success" ? "text-emerald-300" : "text-slate-300";
+    elEditStatus.textContent = text;
+    elEditStatus.className = `text-xs ${color} min-h-[1.25rem]`;
+  }
+
+  function openEditModal(record) {
+    if (!record || !record.id) return;
+    editId = record.id;
+    editMastery = Number(record.mastery) || null;
+    editPleasure = Number(record.pleasure) || null;
+    if (elEditTaskName) elEditTaskName.value = record.task || "";
+    if (elEditCategory) elEditCategory.value = record.category || "";
+    updateEditRatingUI();
+    setEditStatus("");
+    elEditOverlay.classList.remove("hidden");
+    document.body.classList.add("no-scroll");
+    setTimeout(() => elEditTaskName?.focus?.(), 50);
+  }
+
+  function closeEditModal() {
+    editId = null;
+    elEditOverlay.classList.add("hidden");
+    document.body.classList.remove("no-scroll");
+  }
+
+  function buildEditRatingRows() {
+    if (!elEditMasteryRow || !elEditPleasureRow) return;
+    elEditMasteryRow.innerHTML = "";
+    elEditPleasureRow.innerHTML = "";
+    for (let i = 1; i <= 5; i++) {
+      const mBtn = document.createElement("button");
+      mBtn.type = "button";
+      mBtn.textContent = String(i);
+      mBtn.className =
+        "rounded-xl border border-slate-800 bg-slate-900/40 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-900/70 active:scale-[0.99] transition";
+      mBtn.addEventListener("click", () => {
+        editMastery = i;
+        updateEditRatingUI();
+      });
+      elEditMasteryRow.appendChild(mBtn);
+
+      const pBtn = document.createElement("button");
+      pBtn.type = "button";
+      pBtn.textContent = String(i);
+      pBtn.className =
+        "rounded-xl border border-slate-800 bg-slate-900/40 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-900/70 active:scale-[0.99] transition";
+      pBtn.addEventListener("click", () => {
+        editPleasure = i;
+        updateEditRatingUI();
+      });
+      elEditPleasureRow.appendChild(pBtn);
+    }
+  }
+
+  function updateEditRatingUI() {
+    if (!elEditMasteryRow || !elEditPleasureRow) return;
+    [...elEditMasteryRow.children].forEach((btn, idx) => {
+      const v = idx + 1;
+      const selected = editMastery === v;
+      btn.className = selected
+        ? "rounded-xl border border-emerald-400/50 bg-emerald-500/15 py-3 text-sm font-semibold text-emerald-200 shadow-neon active:scale-[0.99] transition"
+        : "rounded-xl border border-slate-800 bg-slate-900/40 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-900/70 active:scale-[0.99] transition";
+    });
+    if (elEditMasteryHint) {
+      elEditMasteryHint.textContent = editMastery ? `已选 ${editMastery}/5` : "未选择";
+      elEditMasteryHint.className = editMastery ? "text-xs text-emerald-300" : "text-xs text-slate-500";
+    }
+
+    [...elEditPleasureRow.children].forEach((btn, idx) => {
+      const v = idx + 1;
+      const selected = editPleasure === v;
+      btn.className = selected
+        ? "rounded-xl border border-cyan-400/50 bg-cyan-400/15 py-3 text-sm font-semibold text-cyan-200 shadow-neonCyan active:scale-[0.99] transition"
+        : "rounded-xl border border-slate-800 bg-slate-900/40 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-900/70 active:scale-[0.99] transition";
+    });
+    if (elEditPleasureHint) {
+      elEditPleasureHint.textContent = editPleasure ? `已选 ${editPleasure}/5` : "未选择";
+      elEditPleasureHint.className = editPleasure ? "text-xs text-cyan-300" : "text-xs text-slate-500";
+    }
+  }
 
   function setModalStatus(text, kind = "info") {
     if (!text) {
@@ -317,8 +425,10 @@
     elHistoryCount.textContent = `${records.length} 条`;
     elHistoryList.innerHTML = "";
     elEmptyState.classList.toggle("hidden", records.length > 0);
+    recordById.clear();
 
     for (const r of records) {
+      if (r?.id && !r?._optimistic) recordById.set(r.id, r);
       const created = new Date(r.created_at || Date.now());
       const timeStr = isNaN(created.getTime())
         ? String(r.created_at || "")
@@ -333,6 +443,7 @@
 
       const card = document.createElement("div");
       card.className = "rounded-2xl border border-slate-800 bg-slate-900/30 p-4";
+      if (r?.id && !r?._optimistic) card.dataset.logId = r.id;
       card.innerHTML = `
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
@@ -343,9 +454,17 @@
             </div>
             <div class="mt-1 text-base font-semibold text-slate-100 break-words">${escapeHtml(taskName)}</div>
           </div>
-          <span class="shrink-0 rounded-full border border-cyan-400/25 bg-cyan-400/10 px-2 py-1 text-[11px] font-semibold text-cyan-200">
-            ${escapeHtml(category)}
-          </span>
+          <div class="shrink-0 flex items-center gap-2">
+            <button
+              class="editBtn rounded-full border border-slate-700 bg-slate-900/40 px-2 py-1 text-[11px] font-semibold text-slate-200 hover:bg-slate-900/70"
+              type="button"
+              ${r?.id && !r?._optimistic ? "" : "disabled"}
+              title="编辑此条记录"
+            >编辑</button>
+            <span class="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-2 py-1 text-[11px] font-semibold text-cyan-200">
+              ${escapeHtml(category)}
+            </span>
+          </div>
         </div>
         <div class="mt-3 flex items-center gap-2 text-xs flex-wrap">
           <span class="rounded-lg border border-emerald-400/25 bg-emerald-400/10 px-2 py-1 text-emerald-200">M ${escapeHtml(String(mastery))}/5</span>
@@ -573,6 +692,63 @@ Return JSON only in the format: { "category": "String", "insight": "String" }.`;
   elExportCsvBtn.addEventListener("click", exportCSV);
   elClearAllBtn.addEventListener("click", clearAll);
 
+  // History edit delegation
+  elHistoryList.addEventListener("click", (e) => {
+    const btn = e.target?.closest?.(".editBtn");
+    if (!btn) return;
+    const card = e.target.closest("[data-log-id]");
+    const id = card?.dataset?.logId;
+    if (!id) return;
+    const record = recordById.get(id);
+    if (record) openEditModal(record);
+  });
+
+  // Edit modal events
+  if (elCloseEditBtn) elCloseEditBtn.addEventListener("click", closeEditModal);
+  if (elEditOverlay) {
+    elEditOverlay.addEventListener("click", (e) => {
+      if (e.target === elEditOverlay) closeEditModal();
+    });
+  }
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && elEditOverlay && !elEditOverlay.classList.contains("hidden")) closeEditModal();
+  });
+  if (elEditSaveBtn) {
+    elEditSaveBtn.addEventListener("click", async () => {
+      if (!editId) return;
+      const task = (elEditTaskName?.value || "").trim();
+      const category = (elEditCategory?.value || "").trim();
+      if (!editMastery || !editPleasure) {
+        setEditStatus("请先选择 Mastery 与 Pleasure（1-5）。", "error");
+        return;
+      }
+      elEditSaveBtn.disabled = true;
+      try {
+        if (!HAS_SUPABASE) {
+          const rows = loadLocalLogs();
+          const idx = rows.findIndex((r) => r?.id === editId);
+          if (idx === -1) throw new Error("本地未找到该记录");
+          rows[idx] = { ...rows[idx], task, category, mastery: editMastery, pleasure: editPleasure };
+          saveLocalLogs(rows);
+        } else {
+          const { error } = await supabase
+            .from("logs")
+            .update({ task, category, mastery: editMastery, pleasure: editPleasure })
+            .eq("id", editId)
+            .eq("user_id", ACTIVE_USER_ID);
+          if (error) throw error;
+        }
+        setEditStatus("已保存修改。", "success");
+        closeEditModal();
+        renderHistory();
+      } catch (err) {
+        setEditStatus(err?.message || "保存失败", "error");
+      } finally {
+        elEditSaveBtn.disabled = false;
+      }
+    });
+  }
+
   // Auth events
   if (elLoginBtn) {
     elLoginBtn.addEventListener("click", async () => {
@@ -609,6 +785,7 @@ Return JSON only in the format: { "category": "String", "insight": "String" }.`;
 
   // Init
   buildRatingRows();
+  buildEditRatingRows();
   (async () => {
     if (HAS_SUPABASE) {
       try {
