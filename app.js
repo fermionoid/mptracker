@@ -101,18 +101,6 @@
   const elSkipAiBtn = document.getElementById("skipAiBtn");
   const elModalStatus = document.getElementById("modalStatus");
 
-  // Edit modal
-  const elEditOverlay = document.getElementById("editOverlay");
-  const elCloseEditBtn = document.getElementById("closeEditBtn");
-  const elEditTaskName = document.getElementById("editTaskName");
-  const elEditCategory = document.getElementById("editCategory");
-  const elEditMasteryRow = document.getElementById("editMasteryRow");
-  const elEditPleasureRow = document.getElementById("editPleasureRow");
-  const elEditMasteryHint = document.getElementById("editMasteryHint");
-  const elEditPleasureHint = document.getElementById("editPleasureHint");
-  const elEditSaveBtn = document.getElementById("editSaveBtn");
-  const elEditStatus = document.getElementById("editStatus");
-
   // Visual proof JS is running (hide internal id from UI)
   if (elBuildBadge) elBuildBadge.textContent = `Build: ${BUILD_ID}`;
   if (elStatusText) elStatusText.textContent = `JS 已加载`;
@@ -213,96 +201,138 @@
   // cache last rendered records by id for editing
   const recordById = new Map();
 
-  let editId = null;
-  let editMastery = null;
-  let editPleasure = null;
+  // ======================
+  // Inline editing (no extra edit button/modal)
+  // ======================
+  let inlineEditor = null; // { inputEl, originalEl }
+  let ratingPopover = null; // DOM element
 
-  function setEditStatus(text, kind = "info") {
-    if (!elEditStatus) return;
-    if (!text) {
-      elEditStatus.textContent = "";
-      elEditStatus.className = "text-xs text-slate-400 min-h-[1.25rem]";
+  function cleanupInlineEditor() {
+    if (!inlineEditor) return;
+    try {
+      inlineEditor.inputEl?.remove?.();
+      inlineEditor.originalEl?.classList?.remove?.("hidden");
+    } finally {
+      inlineEditor = null;
+    }
+  }
+
+  function hideRatingPopover() {
+    if (!ratingPopover) return;
+    ratingPopover.remove();
+    ratingPopover = null;
+  }
+
+  async function updateLogById(id, patch) {
+    if (!id) return;
+    if (!HAS_SUPABASE) {
+      const rows = loadLocalLogs();
+      const idx = rows.findIndex((r) => r?.id === id);
+      if (idx === -1) throw new Error("本地未找到该记录");
+      rows[idx] = { ...rows[idx], ...patch };
+      saveLocalLogs(rows);
       return;
     }
-    const color = kind === "error" ? "text-rose-300" : kind === "success" ? "text-emerald-300" : "text-slate-300";
-    elEditStatus.textContent = text;
-    elEditStatus.className = `text-xs ${color} min-h-[1.25rem]`;
+    const { error } = await supabase.from("logs").update(patch).eq("id", id).eq("user_id", ACTIVE_USER_ID);
+    if (error) throw error;
   }
 
-  function openEditModal(record) {
-    if (!record || !record.id) return;
-    editId = record.id;
-    editMastery = Number(record.mastery) || null;
-    editPleasure = Number(record.pleasure) || null;
-    if (elEditTaskName) elEditTaskName.value = record.task || "";
-    if (elEditCategory) elEditCategory.value = record.category || "";
-    updateEditRatingUI();
-    setEditStatus("");
-    elEditOverlay.classList.remove("hidden");
-    document.body.classList.add("no-scroll");
-    setTimeout(() => elEditTaskName?.focus?.(), 50);
+  function startInlineTextEdit({ el, id, field, initialValue, placeholder }) {
+    cleanupInlineEditor();
+    hideRatingPopover();
+
+    const parent = el.parentElement;
+    if (!parent) return;
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = initialValue || "";
+    input.placeholder = placeholder || "";
+    input.className =
+      "w-full rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20";
+
+    el.classList.add("hidden");
+    parent.insertBefore(input, el);
+    input.focus();
+    input.select();
+
+    inlineEditor = { inputEl: input, originalEl: el };
+
+    const cancel = () => cleanupInlineEditor();
+    const commit = async () => {
+      const next = (input.value || "").trim();
+      const prev = (initialValue || "").trim();
+      if (next === prev) {
+        cleanupInlineEditor();
+        return;
+      }
+      input.disabled = true;
+      try {
+        await updateLogById(id, { [field]: next });
+        cleanupInlineEditor();
+        renderHistory();
+      } catch (err) {
+        input.disabled = false;
+        input.classList.add("border-rose-400/60");
+        setTimeout(() => input.classList.remove("border-rose-400/60"), 1200);
+        console.error(err);
+      }
+    };
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") commit();
+      if (e.key === "Escape") cancel();
+    });
+    input.addEventListener("blur", commit);
   }
 
-  function closeEditModal() {
-    editId = null;
-    elEditOverlay.classList.add("hidden");
-    document.body.classList.remove("no-scroll");
-  }
+  function showRatingPicker({ x, y, id, field, current }) {
+    cleanupInlineEditor();
+    hideRatingPopover();
 
-  function buildEditRatingRows() {
-    if (!elEditMasteryRow || !elEditPleasureRow) return;
-    elEditMasteryRow.innerHTML = "";
-    elEditPleasureRow.innerHTML = "";
+    const pop = document.createElement("div");
+    pop.className =
+      "fixed z-[60] rounded-2xl border border-slate-800 bg-slate-950/95 backdrop-blur p-2 shadow-[0_20px_80px_rgba(0,0,0,0.55)]";
+    pop.style.left = `${Math.max(8, Math.min(window.innerWidth - 220, x - 90))}px`;
+    pop.style.top = `${Math.max(8, Math.min(window.innerHeight - 80, y + 10))}px`;
+
+    const row = document.createElement("div");
+    row.className = "grid grid-cols-5 gap-2";
+
     for (let i = 1; i <= 5; i++) {
-      const mBtn = document.createElement("button");
-      mBtn.type = "button";
-      mBtn.textContent = String(i);
-      mBtn.className =
-        "rounded-xl border border-slate-800 bg-slate-900/40 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-900/70 active:scale-[0.99] transition";
-      mBtn.addEventListener("click", () => {
-        editMastery = i;
-        updateEditRatingUI();
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = String(i);
+      const selected = Number(current) === i;
+      b.className = selected
+        ? "rounded-xl border border-cyan-400/50 bg-cyan-400/15 px-0 py-2 text-sm font-semibold text-cyan-200 shadow-neonCyan active:scale-[0.99] transition"
+        : "rounded-xl border border-slate-800 bg-slate-900/40 px-0 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-900/70 active:scale-[0.99] transition";
+      b.addEventListener("click", async () => {
+        try {
+          await updateLogById(id, { [field]: i });
+          hideRatingPopover();
+          renderHistory();
+        } catch (err) {
+          console.error(err);
+          hideRatingPopover();
+        }
       });
-      elEditMasteryRow.appendChild(mBtn);
-
-      const pBtn = document.createElement("button");
-      pBtn.type = "button";
-      pBtn.textContent = String(i);
-      pBtn.className =
-        "rounded-xl border border-slate-800 bg-slate-900/40 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-900/70 active:scale-[0.99] transition";
-      pBtn.addEventListener("click", () => {
-        editPleasure = i;
-        updateEditRatingUI();
-      });
-      elEditPleasureRow.appendChild(pBtn);
-    }
-  }
-
-  function updateEditRatingUI() {
-    if (!elEditMasteryRow || !elEditPleasureRow) return;
-    [...elEditMasteryRow.children].forEach((btn, idx) => {
-      const v = idx + 1;
-      const selected = editMastery === v;
-      btn.className = selected
-        ? "rounded-xl border border-emerald-400/50 bg-emerald-500/15 py-3 text-sm font-semibold text-emerald-200 shadow-neon active:scale-[0.99] transition"
-        : "rounded-xl border border-slate-800 bg-slate-900/40 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-900/70 active:scale-[0.99] transition";
-    });
-    if (elEditMasteryHint) {
-      elEditMasteryHint.textContent = editMastery ? `已选 ${editMastery}/5` : "未选择";
-      elEditMasteryHint.className = editMastery ? "text-xs text-emerald-300" : "text-xs text-slate-500";
+      row.appendChild(b);
     }
 
-    [...elEditPleasureRow.children].forEach((btn, idx) => {
-      const v = idx + 1;
-      const selected = editPleasure === v;
-      btn.className = selected
-        ? "rounded-xl border border-cyan-400/50 bg-cyan-400/15 py-3 text-sm font-semibold text-cyan-200 shadow-neonCyan active:scale-[0.99] transition"
-        : "rounded-xl border border-slate-800 bg-slate-900/40 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-900/70 active:scale-[0.99] transition";
-    });
-    if (elEditPleasureHint) {
-      elEditPleasureHint.textContent = editPleasure ? `已选 ${editPleasure}/5` : "未选择";
-      elEditPleasureHint.className = editPleasure ? "text-xs text-cyan-300" : "text-xs text-slate-500";
-    }
+    pop.appendChild(row);
+    document.body.appendChild(pop);
+    ratingPopover = pop;
+
+    setTimeout(() => {
+      const onDown = (e) => {
+        if (!ratingPopover) return;
+        if (ratingPopover.contains(e.target)) return;
+        hideRatingPopover();
+        window.removeEventListener("pointerdown", onDown, true);
+      };
+      window.addEventListener("pointerdown", onDown, true);
+    }, 0);
   }
 
   function setModalStatus(text, kind = "info") {
@@ -452,23 +482,37 @@
               <span class="text-xs text-slate-500">·</span>
               <span class="text-xs text-slate-400 tabular-nums">${escapeHtml(dur || "—")}</span>
             </div>
-            <div class="mt-1 text-base font-semibold text-slate-100 break-words">${escapeHtml(taskName)}</div>
-          </div>
-          <div class="shrink-0 flex items-center gap-2">
             <button
-              class="editBtn rounded-full border border-slate-700 bg-slate-900/40 px-2 py-1 text-[11px] font-semibold text-slate-200 hover:bg-slate-900/70"
               type="button"
+              class="mt-1 text-left w-full text-base font-semibold text-slate-100 break-words hover:text-slate-50 active:scale-[0.995] transition"
+              data-edit="task"
               ${r?.id && !r?._optimistic ? "" : "disabled"}
-              title="编辑此条记录"
-            >编辑</button>
-            <span class="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-2 py-1 text-[11px] font-semibold text-cyan-200">
-              ${escapeHtml(category)}
-            </span>
+              title="点此编辑任务名"
+            >${escapeHtml(taskName)}</button>
           </div>
+          <button
+            type="button"
+            class="shrink-0 rounded-full border border-cyan-400/25 bg-cyan-400/10 px-2 py-1 text-[11px] font-semibold text-cyan-200 hover:bg-cyan-400/15 active:scale-[0.99] transition"
+            data-edit="category"
+            ${r?.id && !r?._optimistic ? "" : "disabled"}
+            title="点此编辑分类"
+          >${escapeHtml(category)}</button>
         </div>
         <div class="mt-3 flex items-center gap-2 text-xs flex-wrap">
-          <span class="rounded-lg border border-emerald-400/25 bg-emerald-400/10 px-2 py-1 text-emerald-200">M ${escapeHtml(String(mastery))}/5</span>
-          <span class="rounded-lg border border-cyan-400/25 bg-cyan-400/10 px-2 py-1 text-cyan-200">P ${escapeHtml(String(pleasure))}/5</span>
+          <button
+            type="button"
+            class="rounded-lg border border-emerald-400/25 bg-emerald-400/10 px-2 py-1 text-emerald-200 hover:bg-emerald-400/15 active:scale-[0.99] transition"
+            data-edit="mastery"
+            ${r?.id && !r?._optimistic ? "" : "disabled"}
+            title="点此修改 Mastery"
+          >M ${escapeHtml(String(mastery))}/5</button>
+          <button
+            type="button"
+            class="rounded-lg border border-cyan-400/25 bg-cyan-400/10 px-2 py-1 text-cyan-200 hover:bg-cyan-400/15 active:scale-[0.99] transition"
+            data-edit="pleasure"
+            ${r?.id && !r?._optimistic ? "" : "disabled"}
+            title="点此修改 Pleasure"
+          >P ${escapeHtml(String(pleasure))}/5</button>
         </div>
         ${
           insight
@@ -692,62 +736,65 @@ Return JSON only in the format: { "category": "String", "insight": "String" }.`;
   elExportCsvBtn.addEventListener("click", exportCSV);
   elClearAllBtn.addEventListener("click", clearAll);
 
-  // History edit delegation
+  // Inline edit delegation (task/category/mastery/pleasure)
   elHistoryList.addEventListener("click", (e) => {
-    const btn = e.target?.closest?.(".editBtn");
-    if (!btn) return;
-    const card = e.target.closest("[data-log-id]");
+    const el = e.target?.closest?.("[data-edit]");
+    if (!el) return;
+    const field = el.dataset.edit;
+    const card = el.closest("[data-log-id]");
     const id = card?.dataset?.logId;
     if (!id) return;
     const record = recordById.get(id);
-    if (record) openEditModal(record);
+    if (!record) return;
+
+    if (field === "task") {
+      startInlineTextEdit({
+        el,
+        id,
+        field: "task",
+        initialValue: record.task || "",
+        placeholder: "任务名称…",
+      });
+      return;
+    }
+    if (field === "category") {
+      startInlineTextEdit({
+        el,
+        id,
+        field: "category",
+        initialValue: record.category || "",
+        placeholder: "分类…",
+      });
+      return;
+    }
+    if (field === "mastery") {
+      showRatingPicker({
+        x: e.clientX,
+        y: e.clientY,
+        id,
+        field: "mastery",
+        current: record.mastery,
+      });
+      return;
+    }
+    if (field === "pleasure") {
+      showRatingPicker({
+        x: e.clientX,
+        y: e.clientY,
+        id,
+        field: "pleasure",
+        current: record.pleasure,
+      });
+      return;
+    }
   });
 
-  // Edit modal events
-  if (elCloseEditBtn) elCloseEditBtn.addEventListener("click", closeEditModal);
-  if (elEditOverlay) {
-    elEditOverlay.addEventListener("click", (e) => {
-      if (e.target === elEditOverlay) closeEditModal();
-    });
-  }
   window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && elEditOverlay && !elEditOverlay.classList.contains("hidden")) closeEditModal();
+    if (e.key === "Escape") {
+      cleanupInlineEditor();
+      hideRatingPopover();
+    }
   });
-  if (elEditSaveBtn) {
-    elEditSaveBtn.addEventListener("click", async () => {
-      if (!editId) return;
-      const task = (elEditTaskName?.value || "").trim();
-      const category = (elEditCategory?.value || "").trim();
-      if (!editMastery || !editPleasure) {
-        setEditStatus("请先选择 Mastery 与 Pleasure（1-5）。", "error");
-        return;
-      }
-      elEditSaveBtn.disabled = true;
-      try {
-        if (!HAS_SUPABASE) {
-          const rows = loadLocalLogs();
-          const idx = rows.findIndex((r) => r?.id === editId);
-          if (idx === -1) throw new Error("本地未找到该记录");
-          rows[idx] = { ...rows[idx], task, category, mastery: editMastery, pleasure: editPleasure };
-          saveLocalLogs(rows);
-        } else {
-          const { error } = await supabase
-            .from("logs")
-            .update({ task, category, mastery: editMastery, pleasure: editPleasure })
-            .eq("id", editId)
-            .eq("user_id", ACTIVE_USER_ID);
-          if (error) throw error;
-        }
-        setEditStatus("已保存修改。", "success");
-        closeEditModal();
-        renderHistory();
-      } catch (err) {
-        setEditStatus(err?.message || "保存失败", "error");
-      } finally {
-        elEditSaveBtn.disabled = false;
-      }
-    });
-  }
 
   // Auth events
   if (elLoginBtn) {
@@ -785,7 +832,6 @@ Return JSON only in the format: { "category": "String", "insight": "String" }.`;
 
   // Init
   buildRatingRows();
-  buildEditRatingRows();
   (async () => {
     if (HAS_SUPABASE) {
       try {
