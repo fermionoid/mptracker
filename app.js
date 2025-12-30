@@ -224,7 +224,8 @@
   function recordKey(r) {
     if (!r || r._optimistic) return null;
     if (r.id != null && r.id !== "") return `id:${r.id}`;
-    if (r.created_at) return `ts:${r.created_at}`;
+    // fallback key when table doesn't have an id column yet
+    if (r.created_at) return `ts:${r.user_id || ""}:${r.created_at}`;
     return null;
   }
 
@@ -276,7 +277,7 @@
       const idx =
         id != null
           ? rows.findIndex((r) => r?.id === id)
-          : rows.findIndex((r) => r?.created_at && r.created_at === rec.created_at);
+          : rows.findIndex((r) => r?.created_at && r.created_at === rec.created_at && (r.user_id || "") === (rec.user_id || ""));
       if (idx === -1) throw new Error("本地未找到该记录");
       rows[idx] = { ...rows[idx], ...patch };
       saveLocalLogs(rows);
