@@ -32,7 +32,7 @@
         <div class="flex items-center justify-between">
           <div>
             <h1 class="text-xl font-semibold tracking-tight">MP Tracker</h1>
-            <p class="text-sm text-slate-300">胜任感 × 愉悦感 · 找到甜区</p>
+            <p class="text-sm text-slate-300">胜任感 × 愉悦感</p>
           </div>
           <div class="flex items-center gap-2">
             <span id="userLabel" class="hidden text-[11px] text-slate-300 truncate max-w-[160px]"></span>
@@ -41,7 +41,7 @@
               class="rounded-full border border-slate-700 bg-slate-900/40 px-3 py-1 text-[11px] font-semibold text-slate-200 hover:bg-slate-900/70"
               type="button"
             >
-              登录
+              Gmail 登录
             </button>
             <button
               id="logoutBtn"
@@ -50,7 +50,6 @@
             >
               退出
             </button>
-            <span id="buildBadge" class="text-[11px] text-slate-500 rounded-full border border-slate-800 px-2 py-1">Build: -</span>
           </div>
         </div>
       </header>
@@ -98,9 +97,14 @@
           </div>
         </section>
 
-        <div class="mt-6 flex items-center justify-between gap-3">
-          <div class="text-xs text-slate-500">
-            数据保存在云端 <code class="text-slate-400">Supabase</code>
+        <div class="mt-6 flex items-end justify-between gap-3">
+          <div class="min-w-0">
+            <div class="text-xs text-slate-500">
+              数据保存在云端 <code class="text-slate-400">Supabase</code>
+            </div>
+            <div id="buildBadge" class="mt-2 inline-flex text-[11px] text-slate-500 rounded-full border border-slate-800 px-2 py-1">
+              Build: -
+            </div>
           </div>
           <button
             id="exportCsvBtn"
@@ -162,17 +166,18 @@
 
             <div class="flex items-center gap-2">
               <button
-                id="submitBtn"
-                class="flex-1 rounded-2xl py-4 text-base font-semibold bg-cyan-400 text-slate-950 shadow-neonCyan active:scale-[0.99] transition disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                Save & Analyze
-              </button>
-              <button
                 id="skipAiBtn"
-                class="rounded-2xl px-4 py-4 text-sm font-semibold border border-slate-800 bg-slate-900/40 text-slate-200 hover:bg-slate-900/70"
-                title="不调用 AI，直接保存"
+                class="flex-1 rounded-2xl py-4 text-base font-semibold bg-cyan-400 text-slate-950 shadow-neonCyan active:scale-[0.99] transition disabled:opacity-60 disabled:cursor-not-allowed"
+                title="默认：直接保存（不调用 AI）"
               >
                 仅保存
+              </button>
+              <button
+                id="submitBtn"
+                class="rounded-2xl px-4 py-4 text-sm font-semibold border border-slate-800 bg-slate-900/40 text-slate-200 hover:bg-slate-900/70"
+                title="额外：保存并调用 AI 分析"
+              >
+                AI 分析
               </button>
             </div>
 
