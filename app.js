@@ -150,8 +150,9 @@
 
   // Active identity used for data isolation
   // - if logged in: Supabase auth user id
-  // - else: guest device id
+  // - else: guest device id (local only; NOT used for Supabase when RLS is on)
   let ACTIVE_USER_ID = USER_ID;
+  let IS_AUTHED = false;
 
   function shortId(id) {
     return String(id || "").slice(0, 8);
@@ -160,6 +161,7 @@
   function setAuthUI(session) {
     if (session?.user) {
       ACTIVE_USER_ID = session.user.id;
+      IS_AUTHED = true;
       if (elUserLabel) {
         elUserLabel.textContent = session.user.email ? `已登录：${session.user.email}` : `已登录`;
         elUserLabel.classList.remove("hidden");
@@ -168,6 +170,7 @@
       if (elLogoutBtn) elLogoutBtn.classList.remove("hidden");
     } else {
       ACTIVE_USER_ID = USER_ID;
+      IS_AUTHED = false;
       if (elUserLabel) {
         elUserLabel.textContent = "游客";
         elUserLabel.classList.remove("hidden");
@@ -181,7 +184,7 @@
   }
 
   async function fetchLogs() {
-    if (!HAS_SUPABASE) return loadLocalLogs();
+    if (!HAS_SUPABASE || !IS_AUTHED) return loadLocalLogs();
     const { data, error } = await supabase
       .from("logs")
       .select("*")
@@ -192,7 +195,7 @@
   }
 
   async function insertLog(row) {
-    if (!HAS_SUPABASE) {
+    if (!HAS_SUPABASE || !IS_AUTHED) {
       const rows = loadLocalLogs();
       // ensure stable id for local editing
       const localId = row.id || `local_${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -242,7 +245,7 @@
 
   async function updateLogById(id, patch) {
     if (!id) return;
-    if (!HAS_SUPABASE) {
+    if (!HAS_SUPABASE || !IS_AUTHED) {
       const rows = loadLocalLogs();
       const idx = rows.findIndex((r) => r?.id === id);
       if (idx === -1) throw new Error("本地未找到该记录");
@@ -708,10 +711,10 @@ Return JSON only in the format: { "category": "String", "insight": "String" }.`;
     const ok = confirm("确定要清空该用户的所有历史吗？此操作不可撤销。");
     if (!ok) return;
     try {
-      if (!HAS_SUPABASE) {
+      if (!HAS_SUPABASE || !IS_AUTHED) {
         saveLocalLogs([]);
       } else {
-        const { error } = await supabase.from("logs").delete().eq("user_id", USER_ID);
+        const { error } = await supabase.from("logs").delete().eq("user_id", ACTIVE_USER_ID);
         if (error) throw error;
       }
       optimistic.length = 0;
