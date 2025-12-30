@@ -1,6 +1,7 @@
 // MP Tracker app logic (external file to avoid CSP blocking inline scripts)
 (() => {
-  const BUILD_ID = new Date().toISOString().replace("T", " ").slice(0, 19);
+  // Fallback only (real "build" is derived from Last-Modified of app.js when possible)
+  const BUILD_ID = "local";
 
   // ======================
   // 配置（你在这里填写）
@@ -101,9 +102,25 @@
   const elSkipAiBtn = document.getElementById("skipAiBtn");
   const elModalStatus = document.getElementById("modalStatus");
 
-  // Visual proof JS is running (hide internal id from UI)
-  if (elBuildBadge) elBuildBadge.textContent = `Build: ${BUILD_ID}`;
+  async function refreshBuildBadge() {
+    if (!elBuildBadge) return;
+    elBuildBadge.textContent = "Build: …";
+    try {
+      const res = await fetch("./app.js", { method: "HEAD", cache: "no-store" });
+      const lm = res.headers.get("last-modified");
+      if (lm) {
+        const d = new Date(lm);
+        const text = isNaN(d.getTime()) ? lm : d.toISOString().replace("T", " ").slice(0, 19);
+        elBuildBadge.textContent = `Build: ${text}`;
+        return;
+      }
+    } catch {}
+    elBuildBadge.textContent = `Build: ${BUILD_ID}`;
+  }
+
+  // Visual proof JS is running
   if (elStatusText) elStatusText.textContent = `JS 已加载`;
+  refreshBuildBadge();
 
   window.addEventListener("error", (e) => {
     try {
@@ -159,7 +176,7 @@
       if (elLogoutBtn) elLogoutBtn.classList.add("hidden");
     }
     // refresh badge/status (no id shown)
-    if (elBuildBadge) elBuildBadge.textContent = `Build: ${BUILD_ID}`;
+    refreshBuildBadge();
     if (elStatusText) elStatusText.textContent = session?.user ? "已登录" : "游客模式";
   }
 
