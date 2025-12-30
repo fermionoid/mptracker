@@ -218,8 +218,15 @@
   let modalMastery = null;
   let modalPleasure = null;
   const optimistic = [];
-  // cache last rendered records by id for editing
-  const recordById = new Map();
+  // cache last rendered records for editing (some tables may not have an `id` column)
+  const recordByKey = new Map();
+
+  function recordKey(r) {
+    if (!r || r._optimistic) return null;
+    if (r.id != null && r.id !== "") return `id:${r.id}`;
+    if (r.created_at) return `ts:${r.created_at}`;
+    return null;
+  }
 
   // ======================
   // Inline editing (no extra edit button/modal)
@@ -261,21 +268,34 @@
     ratingPopover = null;
   }
 
-  async function updateLogById(id, patch) {
-    if (!id) return;
+  async function updateLogByRecord(rec, patch) {
+    if (!rec) return;
     if (!HAS_SUPABASE || !IS_AUTHED) {
       const rows = loadLocalLogs();
-      const idx = rows.findIndex((r) => r?.id === id);
+      const id = rec.id;
+      const idx =
+        id != null
+          ? rows.findIndex((r) => r?.id === id)
+          : rows.findIndex((r) => r?.created_at && r.created_at === rec.created_at);
       if (idx === -1) throw new Error("本地未找到该记录");
       rows[idx] = { ...rows[idx], ...patch };
       saveLocalLogs(rows);
       return;
     }
-    const { error } = await supabase.from("logs").update(patch).eq("id", id).eq("user_id", ACTIVE_USER_ID);
+    // Prefer `id` if the table has it; otherwise fall back to created_at+user_id (best-effort).
+    let q = supabase.from("logs").update(patch).eq("user_id", ACTIVE_USER_ID);
+    if (rec.id != null && rec.id !== "") {
+      q = q.eq("id", rec.id);
+    } else if (rec.created_at) {
+      q = q.eq("created_at", rec.created_at);
+    } else {
+      throw new Error("该记录缺少 id/created_at，无法定位更新");
+    }
+    const { error } = await q;
     if (error) throw error;
   }
 
-  function startInlineTextEdit({ el, id, field, initialValue, placeholder }) {
+  function startInlineTextEdit({ el, record, field, initialValue, placeholder }) {
     cleanupInlineEditor();
     hideRatingPopover();
 
@@ -306,7 +326,7 @@
       }
       input.disabled = true;
       try {
-        await updateLogById(id, { [field]: next });
+        await updateLogByRecord(record, { [field]: next });
         cleanupInlineEditor();
         renderHistory();
       } catch (err) {
@@ -325,7 +345,7 @@
     input.addEventListener("blur", commit);
   }
 
-  function showRatingPicker({ x, y, id, field, current }) {
+  function showRatingPicker({ x, y, record, field, current }) {
     cleanupInlineEditor();
     hideRatingPopover();
 
@@ -352,7 +372,7 @@
         : "w-11 h-11 rounded-full border border-slate-800 bg-slate-900/40 text-base font-semibold text-slate-200 hover:bg-slate-900/70 active:scale-[0.99] transition";
       b.addEventListener("click", async () => {
         try {
-          await updateLogById(id, { [field]: i });
+          await updateLogByRecord(record, { [field]: i });
           hideRatingPopover();
           renderHistory();
         } catch (err) {
@@ -499,10 +519,11 @@
     elHistoryCount.textContent = `${records.length} 条`;
     elHistoryList.innerHTML = "";
     elEmptyState.classList.toggle("hidden", records.length > 0);
-    recordById.clear();
+    recordByKey.clear();
 
     for (const r of records) {
-      if (r?.id && !r?._optimistic) recordById.set(r.id, r);
+      const key = recordKey(r);
+      if (key) recordByKey.set(key, r);
       const created = new Date(r.created_at || Date.now());
       const timeStr = isNaN(created.getTime())
         ? String(r.created_at || "")
@@ -517,7 +538,7 @@
 
       const card = document.createElement("div");
       card.className = "rounded-2xl border border-slate-800 bg-slate-900/30 p-4";
-      if (r?.id && !r?._optimistic) card.dataset.logId = r.id;
+      if (key) card.dataset.logKey = key;
       card.innerHTML = `
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
@@ -530,7 +551,7 @@
               type="button"
               class="mt-1 text-left w-full text-base font-semibold text-slate-100 break-words hover:text-slate-50 active:scale-[0.995] transition"
               data-edit="task"
-              ${r?.id && !r?._optimistic ? "" : "disabled"}
+              ${key ? "" : "disabled"}
               title="点此编辑任务名"
             >${escapeHtml(taskName)}</button>
           </div>
@@ -538,7 +559,7 @@
             type="button"
             class="shrink-0 rounded-full border border-cyan-400/25 bg-cyan-400/10 px-2 py-1 text-[11px] font-semibold text-cyan-200 hover:bg-cyan-400/15 active:scale-[0.99] transition"
             data-edit="category"
-            ${r?.id && !r?._optimistic ? "" : "disabled"}
+            ${key ? "" : "disabled"}
             title="点此编辑分类"
           >${escapeHtml(category)}</button>
         </div>
@@ -547,14 +568,14 @@
             type="button"
             class="rounded-lg border border-emerald-400/25 bg-emerald-400/10 px-2 py-1 text-emerald-200 hover:bg-emerald-400/15 active:scale-[0.99] transition"
             data-edit="mastery"
-            ${r?.id && !r?._optimistic ? "" : "disabled"}
+            ${key ? "" : "disabled"}
             title="点此修改 Mastery"
           >M ${escapeHtml(String(mastery))}/5</button>
           <button
             type="button"
             class="rounded-lg border border-cyan-400/25 bg-cyan-400/10 px-2 py-1 text-cyan-200 hover:bg-cyan-400/15 active:scale-[0.99] transition"
             data-edit="pleasure"
-            ${r?.id && !r?._optimistic ? "" : "disabled"}
+            ${key ? "" : "disabled"}
             title="点此修改 Pleasure"
           >P ${escapeHtml(String(pleasure))}/5</button>
         </div>
@@ -785,16 +806,16 @@ Return JSON only in the format: { "category": "String", "insight": "String" }.`;
     const el = e.target?.closest?.("[data-edit]");
     if (!el) return;
     const field = el.dataset.edit;
-    const card = el.closest("[data-log-id]");
-    const id = card?.dataset?.logId;
-    if (!id) return;
-    const record = recordById.get(id);
+    const card = el.closest("[data-log-key]");
+    const key = card?.dataset?.logKey;
+    if (!key) return;
+    const record = recordByKey.get(key);
     if (!record) return;
 
     if (field === "task") {
       startInlineTextEdit({
         el,
-        id,
+        record,
         field: "task",
         initialValue: record.task || "",
         placeholder: "任务名称…",
@@ -804,7 +825,7 @@ Return JSON only in the format: { "category": "String", "insight": "String" }.`;
     if (field === "category") {
       startInlineTextEdit({
         el,
-        id,
+        record,
         field: "category",
         initialValue: record.category || "",
         placeholder: "分类…",
@@ -815,7 +836,7 @@ Return JSON only in the format: { "category": "String", "insight": "String" }.`;
       showRatingPicker({
         x: e.clientX,
         y: e.clientY,
-        id,
+        record,
         field: "mastery",
         current: record.mastery,
       });
@@ -825,7 +846,7 @@ Return JSON only in the format: { "category": "String", "insight": "String" }.`;
       showRatingPicker({
         x: e.clientX,
         y: e.clientY,
-        id,
+        record,
         field: "pleasure",
         current: record.pleasure,
       });
