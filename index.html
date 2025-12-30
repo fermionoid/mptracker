@@ -32,9 +32,26 @@
         <div class="flex items-center justify-between">
           <div>
             <h1 class="text-xl font-semibold tracking-tight">MP Tracker</h1>
-            <p class="text-sm text-slate-300">胜任感 × 愉悦感 · 云端同步</p>
+            <p class="text-sm text-slate-300">胜任感 × 愉悦感 · 找到甜区</p>
           </div>
-          <span id="buildBadge" class="text-[11px] text-slate-400 rounded-full border border-slate-700 px-2 py-1">Build: -</span>
+          <div class="flex items-center gap-2">
+            <span id="userLabel" class="hidden text-[11px] text-slate-300 truncate max-w-[140px]"></span>
+            <button
+              id="loginBtn"
+              class="rounded-full border border-slate-700 bg-slate-900/40 px-3 py-1 text-[11px] font-semibold text-slate-200 hover:bg-slate-900/70"
+              type="button"
+            >
+              Google 登录
+            </button>
+            <button
+              id="logoutBtn"
+              class="hidden rounded-full border border-slate-700 bg-slate-900/40 px-3 py-1 text-[11px] font-semibold text-slate-200 hover:bg-slate-900/70"
+              type="button"
+            >
+              退出
+            </button>
+            <span id="buildBadge" class="text-[11px] text-slate-400 rounded-full border border-slate-700 px-2 py-1">Build: -</span>
+          </div>
         </div>
       </header>
 
@@ -83,7 +100,7 @@
 
         <div class="mt-6 flex items-center justify-between gap-3">
           <div class="text-xs text-slate-500">
-            数据保存在云端 <code class="text-slate-400">Supabase</code>（可跨设备同步）
+            数据保存在云端 <code class="text-slate-400">Supabase</code>
           </div>
           <button
             id="exportCsvBtn"

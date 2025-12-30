@@ -102,15 +102,8 @@
   const elModalStatus = document.getElementById("modalStatus");
 
   // Visual proof JS is running + show current USER_ID (for sync / privacy testing)
-  const shortId = String(USER_ID).slice(0, 8);
-  if (elBuildBadge) elBuildBadge.textContent = `Build: ${BUILD_ID} · ID:${shortId}`;
-  if (elStatusText) elStatusText.textContent = `JS 已加载（ID:${shortId}）`;
-
-  // Helpful logs for debugging
-  try {
-    // eslint-disable-next-line no-console
-    console.log("[MP Tracker] USER_ID =", USER_ID, "urlUser =", urlUser || null);
-  } catch {}
+  if (elBuildBadge) elBuildBadge.textContent = `Build: ${BUILD_ID} · ID:${String(USER_ID).slice(0, 8)}`;
+  if (elStatusText) elStatusText.textContent = `JS 已加载（ID:${String(USER_ID).slice(0, 8)}）`;
 
   window.addEventListener("error", (e) => {
     try {
@@ -131,12 +124,48 @@
 
   const supabase = HAS_SUPABASE ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
+  // ======================
+  // Auth UI (Google via Supabase)
+  // ======================
+  const elLoginBtn = document.getElementById("loginBtn");
+  const elLogoutBtn = document.getElementById("logoutBtn");
+  const elUserLabel = document.getElementById("userLabel");
+
+  // Active identity used for data isolation
+  // - if logged in: Supabase auth user id
+  // - else: guest device id
+  let ACTIVE_USER_ID = USER_ID;
+
+  function shortId(id) {
+    return String(id || "").slice(0, 8);
+  }
+
+  function setAuthUI(session) {
+    if (session?.user) {
+      ACTIVE_USER_ID = session.user.id;
+      if (elUserLabel) {
+        elUserLabel.textContent = session.user.email ? `已登录：${session.user.email}` : `已登录`;
+        elUserLabel.classList.remove("hidden");
+      }
+      if (elLoginBtn) elLoginBtn.classList.add("hidden");
+      if (elLogoutBtn) elLogoutBtn.classList.remove("hidden");
+    } else {
+      ACTIVE_USER_ID = USER_ID;
+      if (elUserLabel) elUserLabel.classList.add("hidden");
+      if (elLoginBtn) elLoginBtn.classList.remove("hidden");
+      if (elLogoutBtn) elLogoutBtn.classList.add("hidden");
+    }
+    // refresh badge/status with the actual active id
+    if (elBuildBadge) elBuildBadge.textContent = `Build: ${BUILD_ID} · ID:${shortId(ACTIVE_USER_ID)}`;
+    if (elStatusText) elStatusText.textContent = `JS 已加载（ID:${shortId(ACTIVE_USER_ID)}）`;
+  }
+
   async function fetchLogs() {
     if (!HAS_SUPABASE) return loadLocalLogs();
     const { data, error } = await supabase
       .from("logs")
       .select("*")
-      .eq("user_id", USER_ID)
+      .eq("user_id", ACTIVE_USER_ID)
       .order("created_at", { ascending: false });
     if (error) throw error;
     return data || [];
@@ -443,7 +472,7 @@ Return JSON only in the format: { "category": "String", "insight": "String" }.`;
         duration: formatMMSS(durationSeconds),
         category,
         insight,
-        user_id: USER_ID,
+        user_id: ACTIVE_USER_ID,
         created_at: new Date().toISOString(),
       });
 
@@ -534,6 +563,28 @@ Return JSON only in the format: { "category": "String", "insight": "String" }.`;
   elExportCsvBtn.addEventListener("click", exportCSV);
   elClearAllBtn.addEventListener("click", clearAll);
 
+  // Auth events
+  if (elLoginBtn) {
+    elLoginBtn.addEventListener("click", async () => {
+      if (!HAS_SUPABASE) {
+        alert("未配置 Supabase，无法使用 Google 登录。");
+        return;
+      }
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin + window.location.pathname },
+      });
+      if (error) alert(`登录失败：${error.message}`);
+    });
+  }
+  if (elLogoutBtn) {
+    elLogoutBtn.addEventListener("click", async () => {
+      if (!HAS_SUPABASE) return;
+      const { error } = await supabase.auth.signOut();
+      if (error) alert(`退出失败：${error.message}`);
+    });
+  }
+
   window.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && isRunning && elModalOverlay.classList.contains("hidden")) {
       e.preventDefault();
@@ -548,7 +599,23 @@ Return JSON only in the format: { "category": "String", "insight": "String" }.`;
 
   // Init
   buildRatingRows();
-  renderHistory();
+  (async () => {
+    if (HAS_SUPABASE) {
+      try {
+        const { data } = await supabase.auth.getSession();
+        setAuthUI(data?.session || null);
+      } catch {
+        setAuthUI(null);
+      }
+      supabase.auth.onAuthStateChange((_event, session) => {
+        setAuthUI(session);
+        renderHistory();
+      });
+    } else {
+      setAuthUI(null);
+    }
+    renderHistory();
+  })();
 })();
 
 
